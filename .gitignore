@@ -1,0 +1,6 @@
+# secrets / local config variants
+config/*.local.json
+config/*secret*
+**/*token*
+*.log
+.DS_Store
