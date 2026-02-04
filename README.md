@@ -1,82 +1,154 @@
-﻿# Czechia.com DNS-01 pro win-acme (Script plugin)
+# win-acme DNS plugin – Czechia
 
-Balíček pro uživatele **win-acme (wacs.exe)**, kteří mají DNS u **Czechia.com** a chtějí automatizovat vydávání/obnovu certifikátů přes **DNS-01** (včetně wildcard `*.domain`).
-
-➡️ Používá vestavěný **DNS Script validation plugin** ve win-acme, takže není potřeba žádné DLL ani kompilace.
+DNS-01 validační skripty pro **win-acme (wacs.exe)** využívající **Czechia DNS API**.  
+Plugin umožňuje automatické vystavování certifikátů (včetně SAN a wildcard) pomocí TXT záznamů.
 
 ---
 
-## Quick start
+## Požadavky
 
-### 1) Stažení a instalace
-1. Stáhni ZIP release a rozbal ho.
-2. Spusť instalátor (PowerShell jako Admin doporučeno):
+- Windows
+- win-acme (wacs.exe)
+- Doména spravovaná u **Czechia**
+- API token od Czechia
+
+---
+
+## Instalace
+
+1. Stáhni obsah repozitáře
+2. Rozbal jej
+3. Spusť instalační skript:
 
 ```powershell
 .\Install-CzechiaWinAcmeDns.ps1 -SetTokenForSession
 ```
 
-Výchozí instalace: `C:\ProgramData\win-acme\CzechiaDns`
+Instalátor:
+- zkopíruje skripty do  
+  `C:\ProgramData\win-acme\CzechiaDns\scripts`
+- nastaví API token pro aktuální PowerShell session
 
-### 2) Trvalé nastavení API klíče (doporučené)
+---
+
+## Použití (DNS-01)
+
+### Jedna doména
 
 ```powershell
-setx CZECHIA_API_TOKEN "TVUJ_API_KLIC"
-```
-
-> API klíč se posílá v hlavičce `AuthorizationToken`.
-
-### 3) Spuštění win-acme (unattended příklad)
-
-```powershell
-$Wacs = "C:\wacs\wacs.exe"
-$Base = "C:\ProgramData\win-acme\CzechiaDns"
-
-& $Wacs `
-  --target manual --host "example.cz" --host "*.example.cz" `
-  --validationmode dns-01 --validation script `
-  --dnscreatescript "$Base\scripts\Create-CzechiaTxt.ps1" `
-  --dnsdeletescript "$Base\scripts\Delete-CzechiaTxt.ps1" `
+& "C:\wacs\wacs.exe" `
+  --target manual `
+  --host "example.cz" `
+  --validationmode dns-01 `
+  --validation script `
+  --dnscreatescript "C:\ProgramData\win-acme\CzechiaDns\scripts\Create-CzechiaTxt.ps1" `
+  --dnsdeletescript "C:\ProgramData\win-acme\CzechiaDns\scripts\Delete-CzechiaTxt.ps1" `
   --dnscreatescriptarguments "{Identifier} {NodeName} {Token} {ZoneName}" `
   --dnsdeletescriptarguments "{Identifier} {NodeName} {Token} {ZoneName}" `
-  --accepttos --emailaddress "admin@example.cz" `
-  --verbose
+  --accepttos --emailaddress "admin@example.cz"
 ```
 
 ---
 
-## Co to dělá
-win-acme při DNS-01:
-1. zavolá Create skript → vytvoří TXT `_acme-challenge` pro danou zónu
-2. po ověření zavolá Delete skript → TXT smaže
+## Více domén (SAN certifikát) – ⚠️ DŮLEŽITÉ
 
-Skripty volají Czechia REST API endpoint: `/api/DNS/{domainName}/TXT` a posílají JSON dle Swaggeru:
-- POST: `{ hostName, text, ttl, publishZone }`
-- DELETE: `{ hostName, text, ttl, publishZone }`
+### Správný způsob zadání SAN domén
+
+U **win-acme** (při použití `--target manual`) **NEOPAKUJTE parametr `--host`**.
+
+❌ Nesprávně / nespolehlivé:
+```powershell
+--host "a.example.cz" --host "b.example.cz"
+```
+
+win-acme v tomto případě často vezme **jen první doménu** a certifikát nebude mít SAN.
 
 ---
 
-## Konfigurace
-Preferovaně přes env proměnné:
-- `CZECHIA_API_TOKEN` (povinné)
-- `CZECHIA_API_BASEURL` (default `https://api.czechia.com`)
-- `CZECHIA_API_TTL` (default `300`)
-- `CZECHIA_API_PUBLISHZONE` (default `0`)
-- `CZECHIA_API_TIMEOUT` (default `30`)
-- `CZECHIA_API_VERBOSE` (`true/false` – vypíše HTTP body)
+### ✅ Správně (jediný parametr `--host`, domény oddělené čárkami)
 
-Alternativně lze použít `config\czechia.dns.json`.
+```powershell
+--host "a.example.cz,b.example.cz"
+```
+
+### Příklad
+```powershell
+--host "le5.example.cz,le6.example.cz"
+```
+
+- **první doména** → CN (Subject)
+- **všechny domény** → SAN (Subject Alternative Name)
+
+Volitelně lze CN nastavit explicitně:
+
+```powershell
+--commonname "le5.example.cz"
+```
+
+---
+
+## Wildcard certifikát
+
+```powershell
+--host "example.cz,*.example.cz"
+```
+
+---
+
+## Debug / ověření
+
+Zapnutí verbose výstupu:
+
+```powershell
+$env:CZECHIA_API_VERBOSE="true"
+```
+
+Ve výpisu win-acme:
+- musí být vidět **více identifikátorů**, pokud žádáš o SAN
+- DNS request vždy obsahuje:
+```json
+"publishZone": 1
+```
+
+---
+
+## Technické poznámky
+
+- `publishZone` je **natvrdo nastaveno na `1`**
+- neexistuje žádná konfigurace publishZone (ENV ani JSON)
+- všechny DNS změny se vždy publikují na autoritativní nameservery
 
 ---
 
 ## Troubleshooting
-- **401/403**: špatný API klíč nebo hlavička (musí být `AuthorizationToken`)
-- **TXT se “nevidí”**: ověř veřejně:
-  ```powershell
-  nslookup -type=TXT _acme-challenge.example.cz 1.1.1.1
-  ```
+
+### Certifikát obsahuje jen jednu doménu
+- zkontroluj, že používáš:
+```powershell
+--host "a.example.cz,b.example.cz"
+```
+- **neopakuj `--host`**
+
+### DNS změny se nepropisují
+- doména musí být spravována u Czechia
+- API token musí mít oprávnění k dané zóně
 
 ---
 
 ## Licence
-MIT (viz `LICENSE`).
+
+MIT License
+
+Copyright (c) 2026 ZONER a.s.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
