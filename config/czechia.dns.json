@@ -1,0 +1,8 @@
+{
+  "baseUrl": "https://api.czechia.com",
+  "token": "PASTE_API_KEY_HERE_OR_USE_ENV_CZECHIA_API_TOKEN",
+  "ttl": 300,
+  "publishZone": 0,
+  "timeoutSeconds": 30,
+  "verboseHttp": false
+}
