@@ -1,39 +1,39 @@
-# win-acme DNS plugin – Czechia
+# win-acme DNS plugin – CZECHIA.COM
 
-DNS-01 validační skripty pro **win-acme (wacs.exe)** využívající **Czechia DNS API**.  
-Plugin umožňuje automatické vystavování certifikátů (včetně SAN a wildcard) pomocí TXT záznamů.
+DNS-01 validation scripts for **win-acme (wacs.exe)** using the **CZECHIA.COM DNS REST API**.  
+This plugin allows automated certificate issuance (including SAN and wildcard certificates) via DNS TXT records.
 
 ---
 
-## Požadavky
+## Requirements
 
 - Windows
 - win-acme (wacs.exe)
-- Doména spravovaná u **Czechia**
-- API token od Czechia
+- Domain managed at **CZECHIA.COM**
+- API token issued by CZECHIA.COM
 
 ---
 
-## Instalace
+## Installation
 
-1. Stáhni obsah repozitáře
-2. Rozbal jej
-3. Spusť instalační skript:
+1. Download the repository contents
+2. Extract the archive
+3. Run the installer script:
 
 ```powershell
 .\Install-CzechiaWinAcmeDns.ps1 -SetTokenForSession
 ```
 
-Instalátor:
-- zkopíruje skripty do  
+The installer will:
+- copy scripts to  
   `C:\ProgramData\win-acme\CzechiaDns\scripts`
-- nastaví API token pro aktuální PowerShell session
+- set the API token for the current PowerShell session
 
 ---
 
-## Použití (DNS-01)
+## Usage (DNS-01)
 
-### Jedna doména
+### Single domain
 
 ```powershell
 & "C:\wacs\wacs.exe" `
@@ -50,36 +50,36 @@ Instalátor:
 
 ---
 
-## Více domén (SAN certifikát) – ⚠️ DŮLEŽITÉ
+## Multiple domains (SAN certificates) – ⚠️ IMPORTANT
 
-### Správný způsob zadání SAN domén
+### Correct way to specify SAN domains
 
-U **win-acme** (při použití `--target manual`) **NEOPAKUJTE parametr `--host`**.
+When using **win-acme** with `--target manual`, **DO NOT repeat the `--host` parameter**.
 
-❌ Nesprávně / nespolehlivé:
+❌ Incorrect / unreliable:
 ```powershell
 --host "a.example.cz" --host "b.example.cz"
 ```
 
-win-acme v tomto případě často vezme **jen první doménu** a certifikát nebude mít SAN.
+In this case, win-acme often issues a certificate containing **only the first domain**.
 
 ---
 
-### ✅ Správně (jediný parametr `--host`, domény oddělené čárkami)
+### ✅ Correct (single `--host` parameter, comma-separated domains)
 
 ```powershell
 --host "a.example.cz,b.example.cz"
 ```
 
-### Příklad
+### Example
 ```powershell
 --host "le5.example.cz,le6.example.cz"
 ```
 
-- **první doména** → CN (Subject)
-- **všechny domény** → SAN (Subject Alternative Name)
+- **first domain** → CN (Subject)
+- **all domains** → SAN (Subject Alternative Name)
 
-Volitelně lze CN nastavit explicitně:
+Optionally, you can explicitly define the CN:
 
 ```powershell
 --commonname "le5.example.cz"
@@ -87,7 +87,7 @@ Volitelně lze CN nastavit explicitně:
 
 ---
 
-## Wildcard certifikát
+## Wildcard certificates
 
 ```powershell
 --host "example.cz,*.example.cz"
@@ -95,47 +95,55 @@ Volitelně lze CN nastavit explicitně:
 
 ---
 
-## Debug / ověření
+## Debugging / verification
 
-Zapnutí verbose výstupu:
+Enable verbose output:
 
 ```powershell
 $env:CZECHIA_API_VERBOSE="true"
 ```
 
-Ve výpisu win-acme:
-- musí být vidět **více identifikátorů**, pokud žádáš o SAN
-- DNS request vždy obsahuje:
+In the win-acme output:
+- multiple identifiers must be visible for SAN requests
+- the DNS API request always contains:
 ```json
 "publishZone": 1
 ```
 
 ---
 
-## Technické poznámky
+## Technical notes
 
-- `publishZone` je **natvrdo nastaveno na `1`**
-- neexistuje žádná konfigurace publishZone (ENV ani JSON)
-- všechny DNS změny se vždy publikují na autoritativní nameservery
+- `publishZone` is **hardcoded to `1`**
+- there is no publishZone configuration (no ENV variables, no JSON settings)
+- all DNS changes are always published to authoritative nameservers
 
 ---
 
 ## Troubleshooting
 
-### Certifikát obsahuje jen jednu doménu
-- zkontroluj, že používáš:
+### Certificate contains only one domain
+- verify that you are using:
 ```powershell
 --host "a.example.cz,b.example.cz"
 ```
-- **neopakuj `--host`**
+- **do not repeat `--host`**
 
-### DNS změny se nepropisují
-- doména musí být spravována u Czechia
-- API token musí mít oprávnění k dané zóně
+### DNS changes are not published
+- the domain must be managed at **CZECHIA.COM**
+- the API token must have permissions for the target zone
 
 ---
 
-## Licence
+## Support
+
+For questions, bug reports, or API-related issues, please contact:
+
+**admin@zoner.cz**
+
+---
+
+## License
 
 MIT License
 
