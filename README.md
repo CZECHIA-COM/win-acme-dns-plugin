@@ -31,6 +31,24 @@ The installer will:
 
 ---
 
+## Security note – API token handling
+
+⚠️ **Important**
+
+The `-SetTokenForSession` option is intended for **interactive testing only**.
+
+When this option is used, the API token is stored **only in the current PowerShell session** and is **not persisted**.  
+Once the session is closed, the token is lost.
+
+For **unattended renewals** (e.g. when win-acme runs via **Scheduled Task**), the API token **must be provided via a persistent mechanism**, such as:
+
+- a **system-level environment variable**, or
+- a **secure storage solution** (e.g. Windows Credential Manager)
+
+Failure to do so will cause DNS validation to fail during automated renewals.
+
+
+
 ## Usage (DNS-01)
 
 ### Single domain
